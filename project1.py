@@ -65,6 +65,7 @@ def load_spacy(download=True, is_uv=False):
 
     nlp = spacy.load("en_core_web_sm")
 
+    return nlp
 
 
 def collect_category(qtl_text, cat_num=1):
@@ -81,19 +82,40 @@ def collect_category(qtl_text, cat_num=1):
 
 
 def split_sentence(nlp, docs):
+    # Create new list
+    new_doc_list = list()
     for doc in nlp.pipe(docs):
-        for token in doc:
-            print(token)
-            break
+        sent_doc = list()
+        for sent in doc.sents:
+            sent_doc.append(sent.text)
+        new_doc_list.append(sent_doc)
+
+    return new_doc_list
+
+def split_token(nlp, docs):
+    # Create new list
+    new_toc_doc_list = list()
+    for sents in docs:
+        new_toc_doc = list()
+        for s in nlp.pipe(sents):
+            for toc in s:
+                # print(toc.text)
+                new_toc_doc.append(toc.text)
+        new_toc_doc_list.append(new_toc_doc)
+    
+    return new_toc_doc_list
 
 
 def preprocess_text(qtl_text, nlp):
     # Collect abstracts with Category 1
-    qtl_text = collect_category(qtl_text, cat_num=1)
+    qtl_cat1_text = collect_category(qtl_text, cat_num=1)
 
     # Split sentences and tokenize (spaCy)
+    sent_qtl_cat1_text = split_sentence(nlp, qtl_cat1_text)
+    toc_qtl_cat1_text = split_token(nlp, sent_qtl_cat1_text)
 
     # Convert to lower case (Python string)
+    
 
     # Remove stop words (spaCy)
 
@@ -130,11 +152,18 @@ if __name__ == '__main__':
     print("Read qtl_text: type: {}, len {}".format(type(qtl_text), len(qtl_text)))
 
     # Load spacy
-    nlp = load_spacy(download=True, is_uv=True)
+    nlp = load_spacy(download=False, is_uv=True) # set download=True for the initial run
 
     # Collect only abstracts of category 1
     c = collect_category(qtl_text, cat_num=1)
-    print("After collecing abstract in Category 1: len(Category) = {}, Example: {}".format(len(c), c[4]))
+    print("After collecing abstract in Category 1: len(Category) = {}, Example: {}".format(len(c), ""))
 
-    split_sentence(nlp, c)
+    sp = split_sentence(nlp, c)
+    print(sp[0][0])
+
+    tsp = split_token(nlp, sp)
+    print(tsp[0])
+    print(tsp[1])
+
+
 
