@@ -7,6 +7,7 @@ import spacy
 # Python libraries
 import json
 import subprocess
+from collections import Counter
 
 ######## Preprocess 
 def read_qtl_text(file_path="./QTL_text.json", drop_keys=True, debug=False):
@@ -99,8 +100,7 @@ def split_token(nlp, docs):
         new_toc_doc = list()
         for s in nlp.pipe(sents):
             for toc in s:
-                # print(toc.text)
-                new_toc_doc.append(toc.text)
+                new_toc_doc.append(toc) # toc.text for str
         new_toc_doc_list.append(new_toc_doc)
     
     return new_toc_doc_list
@@ -114,20 +114,56 @@ def preprocess_text(qtl_text, nlp):
     sent_qtl_cat1_text = split_sentence(nlp, qtl_cat1_text)
     toc_qtl_cat1_text = split_token(nlp, sent_qtl_cat1_text)
 
-    # Convert to lower case (Python string)
-    
+    # Covert to both lower case, and lower case and removing stop words
+    str_toc_qtl_cat1_text = list()
+    lc_toc_qtl_cat1_text = list()
+    sw_lc_toc_qtl_cat1_text = list()
+    na_sw_lc_toc_qtl_cat1_text = list()
+    for sublist in toc_qtl_cat1_text:
+        toc = list()
+        lc = list()
+        sw_lc = list()
+        na_sw_lc = list()
+        for token in sublist:
+            toc.append(token.text)
+            token_str = token.text.lower()
+            lc.append(token_str)
+            if not token.is_stop: # Using spaCy
+                sw_lc.append(token_str)
+                if token.is_alpha and not token.is_punct:
+                    na_sw_lc.append(token.lemma_.lower())
 
-    # Remove stop words (spaCy)
+        str_toc_qtl_cat1_text.append(toc)
+        lc_toc_qtl_cat1_text.append(lc)
+        sw_lc_toc_qtl_cat1_text.append(sw_lc)
+        na_sw_lc_toc_qtl_cat1_text.append(na_sw_lc)
+
+    return {
+        'category_1': qtl_cat1_text,
+        'sentence': sent_qtl_cat1_text,
+        'token': toc_qtl_cat1_text, # token not str
+        'token_str': str_toc_qtl_cat1_text,
+        'lower_case': lc_toc_qtl_cat1_text,
+        'remove_stop_words': sw_lc_toc_qtl_cat1_text,
+        'remove_non_alpha': na_sw_lc_toc_qtl_cat1_text
+    }
 
 
-    return qtl_text
+def compute_word_freq(token_lists):
+    flattened_token_list = [item for sublist in token_lists for item in sublist]
+    word_freq = Counter(flattened_token_list)
 
+    return word_freq
 
-def compute_word_freq(trait_dict, docs):
-    pass
+def word_cloud_freq(word_freq):
+    wordcloud = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
+    plt.figure(figsize=(10, 10))
+    plt.imshow(wordcloud, interpolation="bilinear")
+    plt.axis("off")
+    plt.title("Word Cloud from spaCy Processed Text")
+    plt.show()
 
-
-def compute_tf_idf(trait_dict, docs):
+def compute_tf_idf(trait_dict):
     pass
 
 
@@ -154,16 +190,16 @@ if __name__ == '__main__':
     # Load spacy
     nlp = load_spacy(download=False, is_uv=True) # set download=True for the initial run
 
-    # Collect only abstracts of category 1
-    c = collect_category(qtl_text, cat_num=1)
-    print("After collecing abstract in Category 1: len(Category) = {}, Example: {}".format(len(c), ""))
+    # Preprocessing
+    preprocess_results = preprocess_text(qtl_text, nlp)
 
-    sp = split_sentence(nlp, c)
-    print(sp[0][0])
-
-    tsp = split_token(nlp, sp)
-    print(tsp[0])
-    print(tsp[1])
+######## Task 1
+    freq = compute_word_freq(preprocess_results["remove_non_alpha"])
+    word_cloud_freq(freq)
 
 
+######## Task 2
+
+
+######## Task 3
 
