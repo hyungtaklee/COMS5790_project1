@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import spacy
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pandas as pd
 
 # Python libraries
 import json
@@ -131,7 +133,7 @@ def preprocess_text(qtl_text, nlp):
             if not token.is_stop: # Using spaCy
                 sw_lc.append(token_str)
                 if token.is_alpha and not token.is_punct:
-                    na_sw_lc.append(token.lemma_.lower())
+                    na_sw_lc.append(token.lemma_.lower()) # Incl. lemmatization
 
         str_toc_qtl_cat1_text.append(toc)
         lc_toc_qtl_cat1_text.append(lc)
@@ -155,25 +157,47 @@ def compute_word_freq(token_lists):
 
     return word_freq
 
-def word_cloud_freq(word_freq):
-    wordcloud = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
+
+def compute_tf_idf(token_lists):
+    # Calculate tf-idf using sklearn
+    sklearn_token_lists = []
+    for token_list in token_lists:
+        sklearn_token_lists.append(" ".join(token_list))
+
+    vectorizer = TfidfVectorizer()
+    tf_idf_matrix = vectorizer.fit_transform(sklearn_token_lists)
+    feature_names = vectorizer.get_feature_names_out()
+
+    tf_idf_df = pd.DataFrame(tf_idf_matrix.toarray(), columns=feature_names)
+    word_tf_idf_scores = tf_idf_df.sum().to_dict()
+
+    return word_tf_idf_scores
+
+
+def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq.pdf", format="pdf", is_save=True):
+    wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
     plt.figure(figsize=(10, 10))
-    plt.imshow(wordcloud, interpolation="bilinear")
+    plt.imshow(wc, interpolation="bilinear")
     plt.axis("off")
-    plt.title("Word Cloud from spaCy Processed Text")
+    plt.title("Word Cloud from Frequencies")
+    if not ((format == "pdf") or (format == "png")):
+        format = "pdf"
+    if is_save:
+        plt.savefig("./word_cloud_freq." + format, format=format, dpi=300)
     plt.show()
 
-def compute_tf_idf(trait_dict):
-    pass
 
-
-# Word Cloud part
-# wc = WordCloud(background_color="white", repeat=True, mask=mask)
-# wc.generate(text)
-
-# plt.axis("off")
-# plt.imshow(wc, interpolation="bilinear")
-# plt.show()
+def print_word_cloud_tfidf(word_freq, file_name="./word_cloud_tfidf.pdf", format="pdf", is_save=True):
+    wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
+    plt.figure(figsize=(10, 10))
+    plt.imshow(wc, interpolation="bilinear")
+    plt.axis("off")
+    plt.title("Word Cloud from TF-IDF Scores")
+    if not ((format == "pdf") or (format == "png")):
+        format = "pdf"
+    if is_save:
+        plt.savefig("./word_cloud_tfidf." + format, format=format, dpi=300)
+    plt.show()
 
 # Task 2
 
@@ -188,15 +212,18 @@ if __name__ == '__main__':
     print("Read qtl_text: type: {}, len {}".format(type(qtl_text), len(qtl_text)))
 
     # Load spacy
-    nlp = load_spacy(download=False, is_uv=True) # set download=True for the initial run
+    nlp = load_spacy(download=True, is_uv=True) # set download=True for the initial run
 
     # Preprocessing
     preprocess_results = preprocess_text(qtl_text, nlp)
 
 ######## Task 1
-    freq = compute_word_freq(preprocess_results["remove_non_alpha"])
-    word_cloud_freq(freq)
+    token_lists = preprocess_results["remove_non_alpha"]
+    freq = compute_word_freq(token_lists)
+    print_word_cloud_freq(freq, format="png", is_save=True)
 
+    tf_idf = compute_tf_idf(token_lists)
+    print_word_cloud_tfidf(tf_idf, format="png", is_save=True)
 
 ######## Task 2
 
