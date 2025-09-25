@@ -5,13 +5,14 @@ from wordcloud import WordCloud
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pandas as pd
+import gensim
 
 # Python libraries
 import json
 import subprocess
 from collections import Counter
 
-######## Preprocess 
+######## Preprocess functions ########
 def read_qtl_text(file_path="./QTL_text.json", drop_keys=True, debug=False):
     # Read QTL_text.json file
     try:
@@ -150,7 +151,7 @@ def preprocess_text(qtl_text, nlp):
         'remove_non_alpha': na_sw_lc_toc_qtl_cat1_text
     }
 
-
+#### Task 1 functions ########
 def compute_word_freq(token_lists):
     flattened_token_list = [item for sublist in token_lists for item in sublist]
     word_freq = Counter(flattened_token_list)
@@ -199,10 +200,23 @@ def print_word_cloud_tfidf(word_freq, file_name="./word_cloud_tfidf.pdf", format
         plt.savefig("./word_cloud_tfidf." + format, format=format, dpi=300)
     plt.show()
 
-# Task 2
+#### Task 2 functions ########
+def train_word2vec(token_lists, tf_idf_scores):
+    # Train Word2Vec model
+    model = gensim.models.Word2Vec(token_lists, vector_size=100, window=5, min_count=10, workers=4)
+
+    # Choose top 10 words by TF-IDF scores
+    top_ten_words = sorted(tf_idf_scores.items(), key=lambda item: item[1], reverse=True)[:10]
+    print(top_ten_words)
+
+    for k, _ in top_ten_words:
+        print("Similar 20 words for {}: ".format(k), end="")
+        print(model.wv.most_similar(k, topn=20))
+        print("\n\n")
+
+#### Task 3 functions ########
 
 
-# Task 3
 
 
 if __name__ == '__main__':
@@ -217,7 +231,7 @@ if __name__ == '__main__':
     # Preprocessing
     preprocess_results = preprocess_text(qtl_text, nlp)
 
-######## Task 1
+######## Task 1 ########
     token_lists = preprocess_results["remove_non_alpha"]
     freq = compute_word_freq(token_lists)
     print_word_cloud_freq(freq, format="png", is_save=True)
@@ -225,8 +239,7 @@ if __name__ == '__main__':
     tf_idf = compute_tf_idf(token_lists)
     print_word_cloud_tfidf(tf_idf, format="png", is_save=True)
 
-######## Task 2
+######## Task 2 ########
+    train_word2vec(token_lists, tf_idf)
 
-
-######## Task 3
-
+######## Task 3 ########
