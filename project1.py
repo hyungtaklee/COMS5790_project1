@@ -86,6 +86,11 @@ def collect_category(qtl_text, cat_num=1):
 
 
 def split_sentence(nlp, docs):
+    """ Return a list of lists of strings
+    where each list of strings contains all the sentences from each abstract.
+        
+    split_sentenct(nlp, docs) -> list(list(str), list(str), ...)
+    """
     # Create new list
     new_doc_list = list()
     for doc in nlp.pipe(docs):
@@ -97,6 +102,11 @@ def split_sentence(nlp, docs):
     return new_doc_list
 
 def split_token(nlp, docs):
+    """ Return a list of lists of strings
+    where each list of strings contains all the tokens from each abstract.
+        
+    split_sentenct(nlp, docs) -> list(list(str), list(str), ...)
+    """
     # Create new list
     new_toc_doc_list = list()
     for sents in docs:
@@ -133,7 +143,8 @@ def preprocess_text(qtl_text, nlp):
             lc.append(token_str)
             if not token.is_stop: # Using spaCy
                 sw_lc.append(token_str)
-                if token.is_alpha and not token.is_punct:
+                # if token.is_alpha and not token.is_punct:
+                if not token.is_punct:
                     na_sw_lc.append(token.lemma_.lower()) # Incl. lemmatization
 
         str_toc_qtl_cat1_text.append(toc)
@@ -143,7 +154,7 @@ def preprocess_text(qtl_text, nlp):
 
     return {
         'category_1': qtl_cat1_text,
-        'sentence': sent_qtl_cat1_text,
+        'doc_list': sent_qtl_cat1_text,
         'token': toc_qtl_cat1_text, # token not str
         'token_str': str_toc_qtl_cat1_text,
         'lower_case': lc_toc_qtl_cat1_text,
@@ -175,7 +186,7 @@ def compute_tf_idf(token_lists):
     return word_tf_idf_scores
 
 
-def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq.pdf", format="pdf", is_save=True):
+def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq", format="pdf", is_save=True):
     wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
     plt.figure(figsize=(10, 10))
     plt.imshow(wc, interpolation="bilinear")
@@ -184,11 +195,11 @@ def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq.pdf", format="
     if not ((format == "pdf") or (format == "png")):
         format = "pdf"
     if is_save:
-        plt.savefig("./word_cloud_freq." + format, format=format, dpi=300)
+        plt.savefig(file_name + "." + format, format=format, dpi=300)
     plt.show()
 
 
-def print_word_cloud_tfidf(word_freq, file_name="./word_cloud_tfidf.pdf", format="pdf", is_save=True):
+def print_word_cloud_tfidf(word_freq, file_name="word_cloud_tfidf", format="pdf", is_save=True):
     wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
     plt.figure(figsize=(10, 10))
     plt.imshow(wc, interpolation="bilinear")
@@ -197,8 +208,9 @@ def print_word_cloud_tfidf(word_freq, file_name="./word_cloud_tfidf.pdf", format
     if not ((format == "pdf") or (format == "png")):
         format = "pdf"
     if is_save:
-        plt.savefig("./word_cloud_tfidf." + format, format=format, dpi=300)
+        plt.savefig(file_name + "." + format, format=format, dpi=300)
     plt.show()
+
 
 #### Task 2 functions ########
 def train_word2vec(token_lists, tf_idf_scores):
@@ -214,9 +226,34 @@ def train_word2vec(token_lists, tf_idf_scores):
         print(model.wv.most_similar(k, topn=20))
         print("\n\n")
 
+
 #### Task 3 functions ########
+def phrase_extraction(doc_list, nlp):
+    """ Return """
+    phrase_token_lists = list()
+    for sents in doc_list:
+        tokens = list()
+        phrases = list()
+        # Extract tokens
+        for sent in nlp.pipe(sents):
+            for token in sent:
+                if (not token.is_stop) and (not token.is_punct): # Using spaCy
+                    # if token.is_alpha and not token.is_punct:
+                    tokens.append(token.lemma_.lower()) # Incl. lemmatization
 
+            # Extract phrases
+            for chunk in sent.noun_chunks:
+                temp = [t.lemma_.lower() for t in chunk
+                        if (not t.is_stop) and (not t.is_punct)]
 
+                if len(temp) >= 2:
+                    ep = "_". join(temp)
+                    phrases.append(ep)
+                    # print("phrase: " + ep)
+
+            phrase_token_lists.append(phrases + tokens)
+
+    return phrase_token_lists
 
 
 if __name__ == '__main__':
@@ -231,7 +268,7 @@ if __name__ == '__main__':
     # Preprocessing
     preprocess_results = preprocess_text(qtl_text, nlp)
 
-######## Task 1 ########
+# ######## Task 1 ########
     token_lists = preprocess_results["remove_non_alpha"]
     freq = compute_word_freq(token_lists)
     print_word_cloud_freq(freq, format="png", is_save=True)
@@ -243,3 +280,8 @@ if __name__ == '__main__':
     train_word2vec(token_lists, tf_idf)
 
 ######## Task 3 ########
+    phrase_token_lists = phrase_extraction(preprocess_results["doc_list"], nlp)
+    print(phrase_token_lists[0:20])
+
+    tf_idf_phrase = compute_tf_idf(phrase_token_lists)
+    print_word_cloud_tfidf(tf_idf_phrase, file_name="./word_cloud_pharase_tfidf", format="png", is_save=True)
