@@ -6,6 +6,7 @@ import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pandas as pd
 import gensim
+from gensim.models.phrases import Phrases, Phraser
 
 # Python libraries
 import json
@@ -144,7 +145,7 @@ def preprocess_text(qtl_text, nlp):
             if not token.is_stop: # Using spaCy
                 sw_lc.append(token_str)
                 # if token.is_alpha and not token.is_punct:
-                if not token.is_punct:
+                if (not token.is_punct) and (not token.like_num):
                     na_sw_lc.append(token.lemma_.lower()) # Incl. lemmatization
 
         str_toc_qtl_cat1_text.append(toc)
@@ -186,12 +187,16 @@ def compute_tf_idf(token_lists):
     return word_tf_idf_scores
 
 
-def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq", format="pdf", is_save=True):
+def print_word_cloud_freq(word_freq, file_name="word_cloud_freq", format="pdf", is_save=True, is_phrase=False):
     wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
     plt.figure(figsize=(10, 10))
     plt.imshow(wc, interpolation="bilinear")
     plt.axis("off")
-    plt.title("Word Cloud from Frequencies")
+    if is_phrase:
+        title_add = " (with phrases)"
+    else:
+        title_add = ""
+    plt.title("Word Cloud from Frequencies" + title_add)
     if not ((format == "pdf") or (format == "png")):
         format = "pdf"
     if is_save:
@@ -199,12 +204,17 @@ def print_word_cloud_freq(word_freq, file_name="./word_cloud_freq", format="pdf"
     plt.show()
 
 
-def print_word_cloud_tfidf(word_freq, file_name="word_cloud_tfidf", format="pdf", is_save=True):
+def print_word_cloud_tfidf(word_freq, file_name="word_cloud_tfidf", format="pdf", is_save=True, is_phrase=False):
     wc = WordCloud(width=800, height=800, background_color="white").generate_from_frequencies(word_freq)
     plt.figure(figsize=(10, 10))
     plt.imshow(wc, interpolation="bilinear")
     plt.axis("off")
-    plt.title("Word Cloud from TF-IDF Scores")
+    if is_phrase:
+        title_add = " (with phrases)"
+    else:
+        title_add = ""
+
+    plt.title("Word Cloud from TF-IDF Scores" + title_add)
     if not ((format == "pdf") or (format == "png")):
         format = "pdf"
     if is_save:
@@ -219,42 +229,60 @@ def train_word2vec(token_lists, tf_idf_scores):
 
     # Choose top 10 words by TF-IDF scores
     top_ten_words = sorted(tf_idf_scores.items(), key=lambda item: item[1], reverse=True)[:10]
+    print("1. Top 10 words by TF-IDF scores: ", end="")
     print(top_ten_words)
+    print("\n\n")
 
     for k, _ in top_ten_words:
         print("Similar 20 words for {}: ".format(k), end="")
         print(model.wv.most_similar(k, topn=20))
-        print("\n\n")
+        print("\n")
 
 
 #### Task 3 functions ########
 def phrase_extraction(doc_list, nlp):
     """ Return """
     phrase_token_lists = list()
+    phrase_token_lists_space = list()
+    phrase_list = list()
     for sents in doc_list:
         tokens = list()
+        phrases_space = list()
         phrases = list()
         # Extract tokens
         for sent in nlp.pipe(sents):
             for token in sent:
-                if (not token.is_stop) and (not token.is_punct): # Using spaCy
+                if (not token.is_stop) and (not token.is_punct) and (not token.like_num): # Using spaCy
                     # if token.is_alpha and not token.is_punct:
                     tokens.append(token.lemma_.lower()) # Incl. lemmatization
 
             # Extract phrases
             for chunk in sent.noun_chunks:
                 temp = [t.lemma_.lower() for t in chunk
-                        if (not t.is_stop) and (not t.is_punct)]
+                        if (not t.is_stop) and (not t.is_punct) and (not t.like_num)]
 
                 if len(temp) >= 2:
-                    ep = "_". join(temp)
+                    ep = "_".join(temp)
                     phrases.append(ep)
-                    # print("phrase: " + ep)
+                    eps = " ".join(temp)
+                    phrases_space.append(eps)
+                    phrase_list.append(eps)
 
             phrase_token_lists.append(phrases + tokens)
+            phrase_token_lists_space.append(phrases_space + tokens)
+
+    return [phrase_token_lists, phrase_token_lists_space, phrase_list]
+
+
+def phrase_extraction_gensim(token_str_lists):
+    # Train a Phrases model
+    bigram_model = Phrases(token_str_lists, min_count=1, threshold=1)
+    # Export the Phrases model to a Phraser
+    bigram_phraser = Phraser(bigram_model)
+
+    transformed_sentences = [bigram_phraser[token_list] for token_list in token_str_lists]
 
     return phrase_token_lists
-
 
 if __name__ == '__main__':
     # Read "QTL_text.json" and "Trait_dictionary.txt"
@@ -271,17 +299,43 @@ if __name__ == '__main__':
 # ######## Task 1 ########
     token_lists = preprocess_results["remove_non_alpha"]
     freq = compute_word_freq(token_lists)
-    print_word_cloud_freq(freq, format="png", is_save=True)
+    print_word_cloud_freq(freq, format="pdf", is_save=True)
 
     tf_idf = compute_tf_idf(token_lists)
-    print_word_cloud_tfidf(tf_idf, format="png", is_save=True)
+    print_word_cloud_tfidf(tf_idf, format="pdf", is_save=True)
 
 ######## Task 2 ########
+    print("Word2Vec Result for top 10 words (tokens)")
     train_word2vec(token_lists, tf_idf)
 
 ######## Task 3 ########
-    phrase_token_lists = phrase_extraction(preprocess_results["doc_list"], nlp)
-    print(phrase_token_lists[0:20])
+    [phrase_token_lists, phrase_token_lists_space, phrase_list] = phrase_extraction(preprocess_results["doc_list"], nlp)
 
-    tf_idf_phrase = compute_tf_idf(phrase_token_lists)
-    print_word_cloud_tfidf(tf_idf_phrase, file_name="./word_cloud_pharase_tfidf", format="png", is_save=True)
+    freq_phrase = compute_word_freq(phrase_token_lists)
+    print_word_cloud_freq(
+        freq_phrase,
+        file_name="word_cloud_phrase_freq",
+        format="pdf",
+        is_save=True,
+        is_phrase=True
+    )
+
+    tf_idf_phrase = compute_tf_idf(phrase_token_lists_space)
+    print_word_cloud_tfidf(
+        tf_idf_phrase,
+        file_name="./word_cloud_pharase_tfidf",
+        format="pdf",
+        is_save=True,
+        is_phrase=True
+    )
+    print("Word2Vec Result for top 10 words (tokens + phrases)")
+    train_word2vec(phrase_token_lists, tf_idf_phrase)
+
+    # Check the same phrases from trait dict
+    cnt = 0
+    for p in set(phrase_list):
+        if p in trait_dict:
+            print("Found {}".format(p))
+            cnt = cnt + 1
+
+    print("Total count: {}".format(cnt))
