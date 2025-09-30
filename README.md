@@ -19,3 +19,8 @@ Go to line 17
 ```
 is_lemma = True or False # Apply lemmatization if True.
 ```
+
+## Project locations
+The project can be found on
+1. https://github.com/hyungtaklee/COMS5790_project1
+2. Nova cluster /work/classtmp/htlee/coms5790-project1

@@ -14,7 +14,7 @@ import subprocess
 from collections import Counter
 
 ######## Lemmatization ########
-is_lemma = False
+is_lemma = True
 
 ######## Preprocess functions ########
 def read_qtl_text(file_path="./QTL_text.json", drop_keys=True, debug=False):
