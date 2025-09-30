@@ -14,3 +14,8 @@ pip install uv
 uv run project1.py
 ```
 
+## Turn on/off lemmatization
+Go to line 17
+```
+is_lemma = True or False # Apply lemmatization if True.
+```

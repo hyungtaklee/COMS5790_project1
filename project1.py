@@ -13,6 +13,9 @@ import json
 import subprocess
 from collections import Counter
 
+######## Lemmatization ########
+is_lemma = False
+
 ######## Preprocess functions ########
 def read_qtl_text(file_path="./QTL_text.json", drop_keys=True, debug=False):
     # Read QTL_text.json file
@@ -146,7 +149,10 @@ def preprocess_text(qtl_text, nlp):
                 sw_lc.append(token_str)
                 # if token.is_alpha and not token.is_punct:
                 if (not token.is_punct) and (not token.like_num):
-                    na_sw_lc.append(token.lemma_.lower()) # Incl. lemmatization
+                    if is_lemma:
+                        na_sw_lc.append(token.lemma_.lower()) # Incl. lemmatization
+                    else:
+                        na_sw_lc.append(token.text.lower()) # Incl. lemmatization
 
         str_toc_qtl_cat1_text.append(toc)
         lc_toc_qtl_cat1_text.append(lc)
@@ -254,11 +260,18 @@ def phrase_extraction(doc_list, nlp):
             for token in sent:
                 if (not token.is_stop) and (not token.is_punct) and (not token.like_num): # Using spaCy
                     # if token.is_alpha and not token.is_punct:
-                    tokens.append(token.lemma_.lower()) # Incl. lemmatization
+                    if is_lemma:
+                        tokens.append(token.lemma_.lower()) # Incl. lemmatization
+                    else:
+                        tokens.append(token.text.lower())
 
             # Extract phrases
             for chunk in sent.noun_chunks:
-                temp = [t.lemma_.lower() for t in chunk
+                if is_lemma:
+                    temp = [t.lemma_.lower() for t in chunk
+                            if (not t.is_stop) and (not t.is_punct) and (not t.like_num)]
+                else:
+                    temp = [t.text.lower() for t in chunk
                         if (not t.is_stop) and (not t.is_punct) and (not t.like_num)]
 
                 if len(temp) >= 2:
@@ -299,10 +312,17 @@ if __name__ == '__main__':
 # ######## Task 1 ########
     token_lists = preprocess_results["remove_non_alpha"]
     freq = compute_word_freq(token_lists)
-    print_word_cloud_freq(freq, format="pdf", is_save=True)
+    
+    if is_lemma:
+        print_word_cloud_freq(freq, format="pdf", is_save=True)
+    else:
+        print_word_cloud_freq(freq, file_name="word_cloud_freq_nolm",  format="pdf", is_save=True)
 
     tf_idf = compute_tf_idf(token_lists)
-    print_word_cloud_tfidf(tf_idf, format="pdf", is_save=True)
+    if is_lemma:
+        print_word_cloud_tfidf(tf_idf, format="pdf", is_save=True)
+    else:
+        print_word_cloud_tfidf(tf_idf, file_name="word_cloud_tfidf_nolm", format="pdf", is_save=True)
 
 ######## Task 2 ########
     print("Word2Vec Result for top 10 words (tokens)")
@@ -312,22 +332,40 @@ if __name__ == '__main__':
     [phrase_token_lists, phrase_token_lists_space, phrase_list] = phrase_extraction(preprocess_results["doc_list"], nlp)
 
     freq_phrase = compute_word_freq(phrase_token_lists)
-    print_word_cloud_freq(
+    if is_lemma:
+        print_word_cloud_freq(
+            freq_phrase,
+            file_name="word_cloud_phrase_freq",
+            format="pdf",
+            is_save=True,
+            is_phrase=True
+        )
+    else:
+        print_word_cloud_freq(
         freq_phrase,
-        file_name="word_cloud_phrase_freq",
+        file_name="word_cloud_phrase_freq_nolm",
         format="pdf",
         is_save=True,
         is_phrase=True
     )
 
     tf_idf_phrase = compute_tf_idf(phrase_token_lists_space)
-    print_word_cloud_tfidf(
-        tf_idf_phrase,
-        file_name="./word_cloud_pharase_tfidf",
-        format="pdf",
-        is_save=True,
-        is_phrase=True
-    )
+    if is_lemma:
+        print_word_cloud_tfidf(
+            tf_idf_phrase,
+            file_name="./word_cloud_phrase_tfidf",
+            format="pdf",
+            is_save=True,
+            is_phrase=True
+        )
+    else:
+        print_word_cloud_tfidf(
+            tf_idf_phrase,
+            file_name="./word_cloud_phrase_tfidf_nolm",
+            format="pdf",
+            is_save=True,
+            is_phrase=True
+        )
     print("Word2Vec Result for top 10 words (tokens + phrases)")
     train_word2vec(phrase_token_lists, tf_idf_phrase)
 
